@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sheetID := "19RQe_T-MsxBSOfnwlXRcRKvRRxq6kGu6OA6mmb20aEM"
+	sheetID := os.Getenv("SHEET_ID")
 
 	ctx := context.Background()
 	sheetsService, err := sheets.NewService(ctx)
@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	readRange := "public!B2:E"
+	readRange := os.Getenv("SHEET_RANGE")
 	sheet, err := sheetsService.Spreadsheets.Values.Get(sheetID, readRange).Do()
 	if err != nil {
 		fmt.Println(err.Error())
