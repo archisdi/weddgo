@@ -1,0 +1,23 @@
+.DS_Store
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+.env
+coverage
+.nyc_output
+storage/*
+
+# Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+main
+
+coverage*
+.vscode
+
+service-account.json
