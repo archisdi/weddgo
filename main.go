@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -23,20 +22,26 @@ type Invitation struct {
 
 type InvitationMap map[string]Invitation
 
-func getFirebaseAppInstance() *firebase.App {
+func getFirebaseAppInstance(ctx context.Context) *firebase.App {
 	conf := &firebase.Config{
 		DatabaseURL: os.Getenv("FIREBASE_DB_URL"),
 	}
 	opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-
-	ctx := context.Background()
 	app, err := firebase.NewApp(ctx, conf, opt)
 	if err != nil {
 		log.Fatalln("Error initializing app:", err)
 		os.Exit(1)
 	}
-
 	return app
+}
+
+func getSheetInstance(ctx context.Context) *sheets.Service {
+	sheetsService, err := sheets.NewService(ctx)
+	if err != nil {
+		log.Fatalln("Error initializing sheet service:", err)
+		os.Exit(1)
+	}
+	return sheetsService
 }
 
 func main() {
@@ -45,21 +50,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	sheetID := os.Getenv("SHEET_ID")
-
 	ctx := context.Background()
-	sheetsService, err := sheets.NewService(ctx)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	sheetsService := getSheetInstance(ctx)
+	firebase := getFirebaseAppInstance(ctx)
 
-	firebase := getFirebaseAppInstance()
-
+	sheetID := os.Getenv("SHEET_ID")
 	readRange := os.Getenv("SHEET_RANGE")
 	sheet, err := sheetsService.Spreadsheets.Values.Get(sheetID, readRange).Do()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatalln("Error reading sheet :", err)
 		os.Exit(1)
 	}
 
@@ -82,14 +81,14 @@ func main() {
 
 	dbClient, err := firebase.Database(ctx)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatalln("Error getting database client :", err)
 		os.Exit(1)
 	}
 
 	ref := dbClient.NewRef("invitation/public")
 	err = ref.Set(ctx, &invitationMap)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatalln("Error updating database :", err)
 		os.Exit(1)
 	}
 }
