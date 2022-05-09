@@ -27,10 +27,8 @@ func getFirebaseAppInstance() *firebase.App {
 	conf := &firebase.Config{
 		DatabaseURL: os.Getenv("FIREBASE_DB_URL"),
 	}
-	// Fetch the service account key JSON file contents
 	opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 
-	// Initialize the app with a service account, granting admin privileges
 	ctx := context.Background()
 	app, err := firebase.NewApp(ctx, conf, opt)
 	if err != nil {
