@@ -20,4 +20,4 @@ main
 coverage*
 .vscode
 
-service-account.json
+*.json

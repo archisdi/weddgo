@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -85,8 +87,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	ref := dbClient.NewRef("invitation/public")
+	ref := dbClient.NewRef("invitation/guest")
 	err = ref.Set(ctx, &invitationMap)
+	if err != nil {
+		log.Fatalln("Error updating database :", err)
+		os.Exit(1)
+	}
+
+	jsonFile, err := os.Open(os.Getenv("DETAIL_FILE_URL"))
+	if err != nil {
+		log.Fatalln("Error opening json file :", err)
+		os.Exit(1)
+	}
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	var detail map[string]interface{}
+	json.Unmarshal([]byte(byteValue), &detail)
+
+	detailRef := dbClient.NewRef("invitation/detail")
+	err = detailRef.Set(ctx, &detail)
 	if err != nil {
 		log.Fatalln("Error updating database :", err)
 		os.Exit(1)
