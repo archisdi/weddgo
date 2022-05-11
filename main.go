@@ -20,6 +20,7 @@ type Invitation struct {
 	Domicile string `json:"domicile"`
 	Priority int    `json:"priority"`
 	Invitee  string `json:"invitee"`
+	Key      string `json:"key"`
 }
 
 type InvitationMap map[string]Invitation
@@ -65,20 +66,31 @@ func main() {
 	}
 
 	invitations := []Invitation{}
-	for _, row := range sheet.Values {
+	for i, row := range sheet.Values {
+		index := i + 2
 		priority, _ := strconv.Atoi(row[2].(string))
+
+		name := row[0].(string)
+		key := slug.Make(name)
+		col := strconv.Itoa(index)
+
+		var vr sheets.ValueRange
+		myval := []interface{}{os.Getenv("INVITATION_BASE_URL") + "/" + key}
+		vr.Values = append(vr.Values, myval)
+		sheetsService.Spreadsheets.Values.Update(sheetID, "public!F"+col, &vr).ValueInputOption("RAW").Do()
+
 		invitations = append(invitations, Invitation{
-			Name:     row[0].(string),
+			Name:     name,
 			Domicile: row[1].(string),
 			Priority: priority,
 			Invitee:  row[3].(string),
+			Key:      key,
 		})
 	}
 
 	invitationMap := make(InvitationMap)
 	for _, inv := range invitations {
-		mapKey := slug.Make(inv.Name)
-		invitationMap[mapKey] = inv
+		invitationMap[inv.Key] = inv
 	}
 
 	dbClient, err := firebase.Database(ctx)
