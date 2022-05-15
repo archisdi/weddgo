@@ -20,6 +20,8 @@ type Invitation struct {
 	Domicile string `json:"domicile"`
 	Priority int    `json:"priority"`
 	Invitee  string `json:"invitee"`
+	Gender   string `json:"gender"`
+	Prefix   string `json:"prefix"`
 	Key      string `json:"key"`
 }
 
@@ -65,25 +67,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	regenerateLink := os.Getenv("REGENERATE_LINK") == "1"
 	invitations := []Invitation{}
 	for i, row := range sheet.Values {
-		index := i + 2
 		priority, _ := strconv.Atoi(row[2].(string))
 
 		name := row[0].(string)
 		key := slug.Make(name)
-		col := strconv.Itoa(index)
 
-		var vr sheets.ValueRange
-		myval := []interface{}{os.Getenv("INVITATION_BASE_URL") + "/" + key}
-		vr.Values = append(vr.Values, myval)
-		sheetsService.Spreadsheets.Values.Update(sheetID, "public!F"+col, &vr).ValueInputOption("RAW").Do()
+		if regenerateLink {
+			index := i + 2
+			col := strconv.Itoa(index)
+			var vr sheets.ValueRange
+			myval := []interface{}{os.Getenv("INVITATION_BASE_URL") + "/" + key}
+			vr.Values = append(vr.Values, myval)
+			sheetsService.Spreadsheets.Values.Update(sheetID, os.Getenv("LINK_SHEET_COL")+col, &vr).ValueInputOption("RAW").Do()
+		}
 
+		var prefix string
+		if len(row) > 5 {
+			prefix = row[5].(string)
+		}
 		invitations = append(invitations, Invitation{
 			Name:     name,
 			Domicile: row[1].(string),
 			Priority: priority,
 			Invitee:  row[3].(string),
+			Gender:   row[4].(string),
+			Prefix:   prefix,
 			Key:      key,
 		})
 	}
@@ -117,7 +128,7 @@ func main() {
 	var detail map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &detail)
 
-	detailRef := dbClient.NewRef("invitation/detail")
+	detailRef := dbClient.NewRef("invitation/digital")
 	err = detailRef.Set(ctx, &detail)
 	if err != nil {
 		log.Fatalln("Error updating database :", err)
