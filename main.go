@@ -15,6 +15,10 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+// TODO: seperate 3rd party into singleton modules
+// TODO: implement goroutine to update invitation link
+// TODO: simplify error logging
+
 type Invitation struct {
 	Name     string `json:"name"`
 	Domicile string `json:"domicile"`
