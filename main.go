@@ -3,21 +3,32 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"sync"
+	"weddgo/modules"
 
-	firebase "firebase.google.com/go/v4"
 	"github.com/gosimple/slug"
 	"github.com/joho/godotenv"
-	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
 
-// TODO: seperate 3rd party into singleton modules
-// TODO: implement goroutine to update invitation link
-// TODO: simplify error logging
+var SheetID string
+
+func regenerateInvivationLink(index int, key string, wg *sync.WaitGroup) {
+	col := strconv.Itoa(index)
+	var vr sheets.ValueRange
+
+	link := os.Getenv("INVITATION_BASE_URL") + "/" + key
+	myval := []interface{}{link}
+	vr.Values = append(vr.Values, myval)
+	modules.SH.Spreadsheets.Values.Update(SheetID, os.Getenv("LINK_SHEET_COL")+col, &vr).ValueInputOption("RAW").Do()
+
+	fmt.Println(link)
+}
 
 type Invitation struct {
 	Name     string `json:"name"`
@@ -31,28 +42,6 @@ type Invitation struct {
 
 type InvitationMap map[string]Invitation
 
-func getFirebaseAppInstance(ctx context.Context) *firebase.App {
-	conf := &firebase.Config{
-		DatabaseURL: os.Getenv("FIREBASE_DB_URL"),
-	}
-	opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	app, err := firebase.NewApp(ctx, conf, opt)
-	if err != nil {
-		log.Fatalln("Error initializing app:", err)
-		os.Exit(1)
-	}
-	return app
-}
-
-func getSheetInstance(ctx context.Context) *sheets.Service {
-	sheetsService, err := sheets.NewService(ctx)
-	if err != nil {
-		log.Fatalln("Error initializing sheet service:", err)
-		os.Exit(1)
-	}
-	return sheetsService
-}
-
 func main() {
 	if envErr := godotenv.Load(); envErr != nil {
 		log.Fatal("error while loading environment file")
@@ -60,12 +49,12 @@ func main() {
 	}
 
 	ctx := context.Background()
-	sheetsService := getSheetInstance(ctx)
-	firebase := getFirebaseAppInstance(ctx)
+	modules.InitializeFirebase(ctx)
+	modules.InitializeSheet(ctx)
 
-	sheetID := os.Getenv("SHEET_ID")
+	SheetID = os.Getenv("SHEET_ID")
 	readRange := os.Getenv("SHEET_RANGE")
-	sheet, err := sheetsService.Spreadsheets.Values.Get(sheetID, readRange).Do()
+	sheet, err := modules.SH.Spreadsheets.Values.Get(SheetID, readRange).Do()
 	if err != nil {
 		log.Fatalln("Error reading sheet :", err)
 		os.Exit(1)
@@ -73,20 +62,14 @@ func main() {
 
 	regenerateLink := os.Getenv("REGENERATE_LINK") == "1"
 	invitations := []Invitation{}
+
+	var wg sync.WaitGroup
 	for i, row := range sheet.Values {
 		priority, _ := strconv.Atoi(row[2].(string))
 
 		name := row[0].(string)
-		key := slug.Make(name)
-
-		if regenerateLink {
-			index := i + 2
-			col := strconv.Itoa(index)
-			var vr sheets.ValueRange
-			myval := []interface{}{os.Getenv("INVITATION_BASE_URL") + "/" + key}
-			vr.Values = append(vr.Values, myval)
-			sheetsService.Spreadsheets.Values.Update(sheetID, os.Getenv("LINK_SHEET_COL")+col, &vr).ValueInputOption("RAW").Do()
-		}
+		sheetIndex := i + 2
+		sheetKey := slug.Make(name)
 
 		var prefix string
 		if len(row) > 5 {
@@ -99,8 +82,13 @@ func main() {
 			Invitee:  row[3].(string),
 			Gender:   row[4].(string),
 			Prefix:   prefix,
-			Key:      key,
+			Key:      sheetKey,
 		})
+
+		if regenerateLink {
+			wg.Add(1)
+			regenerateInvivationLink(sheetIndex, sheetKey, &wg)
+		}
 	}
 
 	invitationMap := make(InvitationMap)
@@ -108,7 +96,7 @@ func main() {
 		invitationMap[inv.Key] = inv
 	}
 
-	dbClient, err := firebase.Database(ctx)
+	dbClient, err := modules.FB.Database(ctx)
 	if err != nil {
 		log.Fatalln("Error getting database client :", err)
 		os.Exit(1)
