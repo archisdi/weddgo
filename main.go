@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
-	"sync"
-	"time"
 	"weddgo/modules"
 
 	"github.com/gosimple/slug"
@@ -18,19 +15,6 @@ import (
 )
 
 var SheetID string
-
-func regenerateInvivationLink(index int, key string, wg *sync.WaitGroup) {
-	col := strconv.Itoa(index)
-	var vr sheets.ValueRange
-
-	link := os.Getenv("INVITATION_BASE_URL") + "/" + key
-	myval := []interface{}{link}
-	vr.Values = append(vr.Values, myval)
-	modules.SH.Spreadsheets.Values.Update(SheetID, os.Getenv("LINK_SHEET_COL")+col, &vr).ValueInputOption("RAW").Do()
-	fmt.Println(link)
-
-	time.Sleep(500 * time.Millisecond)
-}
 
 type Invitation struct {
 	Name     string `json:"name"`
@@ -43,6 +27,14 @@ type Invitation struct {
 }
 
 type InvitationMap map[string]Invitation
+
+func regenerateInvivationLink(invitations []Invitation) {
+	var vr sheets.ValueRange
+	for _, invitation := range invitations {
+		vr.Values = append(vr.Values, []interface{}{os.Getenv("INVITATION_BASE_URL") + "/" + invitation.Key})
+	}
+	modules.SH.Spreadsheets.Values.Update(SheetID, os.Getenv("LINK_SHEET_COL"), &vr).ValueInputOption("RAW").Do()
+}
 
 func main() {
 	if envErr := godotenv.Load(); envErr != nil {
@@ -65,12 +57,10 @@ func main() {
 	regenerateLink := os.Getenv("REGENERATE_LINK") == "1"
 	invitations := []Invitation{}
 
-	var wg sync.WaitGroup
-	for i, row := range sheet.Values {
+	for _, row := range sheet.Values {
 		priority, _ := strconv.Atoi(row[2].(string))
 
 		name := row[0].(string)
-		sheetIndex := i + 2
 		sheetKey := slug.Make(name)
 
 		var prefix string
@@ -87,10 +77,10 @@ func main() {
 			Key:      sheetKey,
 		})
 
-		if regenerateLink {
-			wg.Add(1)
-			regenerateInvivationLink(sheetIndex, sheetKey, &wg)
-		}
+	}
+
+	if regenerateLink {
+		regenerateInvivationLink(invitations)
 	}
 
 	invitationMap := make(InvitationMap)
