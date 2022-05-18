@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 	"weddgo/modules"
 
 	"github.com/gosimple/slug"
@@ -26,8 +27,9 @@ func regenerateInvivationLink(index int, key string, wg *sync.WaitGroup) {
 	myval := []interface{}{link}
 	vr.Values = append(vr.Values, myval)
 	modules.SH.Spreadsheets.Values.Update(SheetID, os.Getenv("LINK_SHEET_COL")+col, &vr).ValueInputOption("RAW").Do()
-
 	fmt.Println(link)
+
+	time.Sleep(500 * time.Millisecond)
 }
 
 type Invitation struct {
@@ -120,7 +122,7 @@ func main() {
 	var detail map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &detail)
 
-	detailRef := dbClient.NewRef("invitation/digital")
+	detailRef := dbClient.NewRef("invitation/detail")
 	err = detailRef.Set(ctx, &detail)
 	if err != nil {
 		log.Fatalln("Error updating database :", err)
