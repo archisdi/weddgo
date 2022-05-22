@@ -58,21 +58,20 @@ func main() {
 	invitations := []Invitation{}
 
 	for _, row := range sheet.Values {
-		priority, _ := strconv.Atoi(row[2].(string))
-
-		name := row[0].(string)
-		sheetKey := slug.Make(name)
+		id := row[0].(string)
+		priority, _ := strconv.Atoi(row[3].(string))
+		sheetKey := slug.Make(id)
 
 		var prefix string
 		if len(row) > 5 {
 			prefix = row[5].(string)
 		}
 		invitations = append(invitations, Invitation{
-			Name:     name,
-			Domicile: row[1].(string),
+			Name:     row[1].(string),
+			Domicile: row[2].(string),
 			Priority: priority,
-			Invitee:  row[3].(string),
-			Gender:   row[4].(string),
+			Invitee:  row[4].(string),
+			Gender:   row[5].(string),
 			Prefix:   prefix,
 			Key:      sheetKey,
 		})
