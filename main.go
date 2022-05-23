@@ -63,8 +63,8 @@ func main() {
 		sheetKey := slug.Make(id)
 
 		var prefix string
-		if len(row) > 5 {
-			prefix = row[5].(string)
+		if len(row) > 6 {
+			prefix = row[6].(string)
 		}
 		invitations = append(invitations, Invitation{
 			Name:     row[1].(string),
